@@ -6,8 +6,6 @@ A data science project analyzing trends in popular Korean television dramas usin
 
 This project explores whether the global rise in popularity of Korean dramas is reflected in genre diversity, or whether audiences are still primarily consuming a narrow set of genres. Using data collected directly from TMDB's API, the project walks through a full data science pipeline: data collection, cleaning, SQL-based analysis, visualization, and a recommendation system built from scratch.
 
-**Author's note:** This is my first independent data science project, built as a rising third-year student. I built every stage of this pipeline myself, and prioritized understanding each concept deeply over speed — the goal was to learn, not just to finish quickly.
-
 ## Table of Contents
 - [Data Source](#data-source)
 - [Project Structure](#project-structure)
