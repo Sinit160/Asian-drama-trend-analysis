@@ -6,6 +6,11 @@ import sqlite3
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics.pairwise import cosine_similarity
+import scipy.sparse as sp
+
 
 # day 1
 # Step 1
@@ -310,3 +315,101 @@ plt.savefig("outputs/genre_frequency.png", dpi=300)
 plt.show()
 print(f"interpretation: Drama appears most frequently, while genres like Crime and Mystery appear less often, showing that many popular Korean dramas combine drama with other genres.")
 conn.close() # close it
+
+
+
+# Day 4
+# Step 4.1 (Prepare recommendation features)
+
+'''Here I prepare the genre and overview features by converting genre strings
+into lists, filling any missing overview values, and creating the inputs needed
+for the recommendation system.'''
+
+# Convert "Drama, Comedy" into ["Drama", "Comedy"]
+df["genre_list"] = df["genre_names"].apply(lambda x: x.split(", "))
+
+# Make sure overview has no missing values
+df["overview"] = df["overview"].fillna("No overview available")
+
+print(df[["name", "genre_list"]].head())
+
+# Step 4.2 (One-hot encode genres)
+'''This converts every genre into its own binary feature, allowing each
+drama to be represented by the genres it contains.'''
+mlb = MultiLabelBinarizer()
+genre_matrix = mlb.fit_transform(df["genre_list"])
+
+print(mlb.classes_)
+print(genre_matrix.shape)
+
+# Step 4.3 (Convert overviews into TF-IDF vectors)
+'''TF-IDF converts each overview into a numerical representation that gives
+more importance to meaningful words while reducing the impact of common words.'''
+tfidf = TfidfVectorizer(stop_words="english")
+overview_matrix = tfidf.fit_transform(df["overview"])
+print(overview_matrix.shape)
+# Step 4.4 (Combine genre and overview features)
+'''The genre and overview features are combined into one feature matrix so the
+recommendation system can consider both shared genres and similar descriptions.'''
+combined_features = sp.hstack([overview_matrix, genre_matrix])
+print(combined_features.shape)
+
+# Step 4.5 (Calculate similarity scores)
+'''Cosine similarity compares every drama against every other drama, producing
+similarity scores between 0 and 1.'''
+similarity_matrix = cosine_similarity(combined_features)
+print(similarity_matrix.shape)
+
+# Step 4.6 (Recommendation function)
+
+'''This function finds the most similar dramas to a selected title using the
+combined genre and overview similarity scores.'''
+
+def recommend_dramas(title, n=5):
+
+    # Check whether the title exists
+    if title not in df["name"].values:
+        return f"'{title}' not found."
+
+    # Find the drama's index
+    index = df[df["name"] == title].index[0]
+
+    # Get similarity scores
+    scores = list(enumerate(similarity_matrix[index]))
+
+    # Sort from highest to lowest
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)
+
+    # Skip the first result (it's the same show)
+    top_scores = scores[1:n+1]
+
+    # Return recommendations
+    recommendations = pd.DataFrame({
+        "Drama": [df.iloc[i]["name"] for i, _ in top_scores],
+        "Similarity Score": [round(score, 3) for _, score in top_scores]
+    })
+
+    return recommendations
+# test it
+print(recommend_dramas("The Glory"))
+
+# Step 4.7 (Interactive recommendation system)
+
+'''This loop allows the user to repeatedly enter a Korean drama title and
+receive similar recommendations. Typing "done" ends the program.'''
+
+print("\n=== Korean Drama Recommender ===")
+print('Enter a drama title to get recommendations.')
+print('Type "done" to exit.\n')
+while True:
+    user_choice = input("Enter a drama title: ").strip()
+
+    if user_choice.lower() == "done":
+        print("Thanks for using the Korean Drama Recommender!")
+        break
+
+    recommendations = recommend_dramas(user_choice)
+
+    print("\nRecommendations:")
+    print(recommendations)
+    print()
